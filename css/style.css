@@ -914,7 +914,7 @@ figure.highlight,
   margin: 0 0 5px 0; }
 
 .highlight .comment {
-  color: #969896; }
+  color: #267471; }
 
 .highlight .string {
   color: #183691; }
@@ -938,7 +938,7 @@ figure.highlight,
   color: #63a35c; }
 
 .highlight.bash .code .shebang {
-  color: #969896; }
+  color: #267471; }
 
 .highlight.bash .code .literal,
 .highlight.bash .code .built_in {
