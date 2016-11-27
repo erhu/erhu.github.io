@@ -1,0 +1,536 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description"><title>Javassist 使用指南（二） | 四十岁退休</title><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/normalize/4.1.1/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/0.6.0/pure-min.css"><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/0.6.0/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.bootcss.com/font-awesome/4.6.2/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.bootcss.com/jquery/2.2.3/jquery.min.js"></script><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">Javassist 使用指南（二）</h1><a id="logo" href="/.">四十岁退休</a><p class="description"></p></div><div id="nav-menu"><a href="/." class="current"><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a></div></div><div id="layout" class="pure-g"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">Javassist 使用指南（二）</h1><div class="post-meta">Nov 23, 2016<script src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js" async></script><span id="busuanzi_container_page_pv"> | <span id="busuanzi_value_page_pv"></span><span> Hits</span></span></div><div class="post-content"><p><strong>本文译自：</strong> <a href="https://github.com/jboss-javassist/javassist/wiki/Tutorial-1" target="_blank" rel="external">Javassist Tutorial-1</a><br><strong>原作者：</strong> Shigeru Chiba<br><strong>完成时间：</strong>2016年11月</p>
+<h2 id="4-自省和自定制-Introspection-and-customization"><a href="#4-自省和自定制-Introspection-and-customization" class="headerlink" title="4. 自省和自定制 (Introspection and customization)"></a>4. 自省和自定制 (Introspection and customization)</h2><p>CtClass 提供了自省的方法。Javassist 的自省能力与 Java 反射 API 兼容。 CtClass 提供了 getName()，getSuperclass()，getMethods() 等方法来获取类的信息，也提供了修改类定义的方法（添加字段，添加构造函数、添加方法），同时也可以对方法体的语句进行检测。</p>
+<p>方法由 CtMethod 对象表示。CtMethod 提供了几个函数来修改方法的定义。<br><strong>注意</strong>，如果一个方法继承自一个超类，那么表示继承方法的 CtMethod 对象，同样也表示该超类中声明的方法。</p>
+<p>例如，如果类 Point 声明方法 move() ， Point 的子类 ColorPoint 不覆盖 move() ，那么在 Point 中声明的 move 和  ColorPoint 的 move 具有相同的 CtMethod。 如果由这个 CtMethod 对象表示的方法定义被修改，那么修改将反映在这两种方法上。 如果你只想修改 ColorPoint 中的 move() 方法，你首先必须在 Point 中加入 CtMethod 对象的副本 move() 。CtMethod 对象的副本可以通过 CtNewMethod.copy() 获得。</p>
+<p>Javassist 不允许删除方法或字段，但它允许更改名称。所以，如果一个方法是没有必要的，可以通过调用 CtMethod 的 setName() 和 setModifiers() 中将其改为一个私有方法。</p>
+<p>Javassist 不允许向现有方法添加额外的参数。你可以通过新建一个方法达到同样的效果。 例如，如果你想为一个方法添加一个额外的 int 参数 newZ 到 Point 类，</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">move</span><span class="params">(<span class="keyword">int</span> newX, <span class="keyword">int</span> newY)</span> </span>&#123; x = newX; y = newY; &#125;</div></pre></td></tr></table></figure>
+<p>你可以添加一个这样的方法到 Point 类：</p>
+<figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> <span class="built_in">move</span>(<span class="keyword">int</span> newX, <span class="keyword">int</span> newY, <span class="keyword">int</span> newZ) &#123;</div><div class="line">    <span class="comment">// do what you want with newZ.</span></div><div class="line">    <span class="built_in">move</span>(newX, newY);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>Javassist 还提供了用于直接编辑原始类文件的低级API。<br>例如，CtClass 中的 getClassFile() 返回一个表示类文件的 ClassFile 对象。CtMethod 的 getMethodInfo() 方法返回一个 MethodInfo 对象，表示类文件中的 method_info 结构。 低级API使用 Java 虚拟机规范中的词汇表。 用户必须具有类文件和字节码的知识。有关更多详细信息，请参考 <a href="tutorial3.html#intro">javassist.bytecode 包</a>。</p>
+<p>由 Javassist 修改的类文件只有在使用以 $ 开头的特殊标识符时才需要 javassist.runtime 包来提供运行时支持。接下来的内容会讨论这些特殊标识符。在没有这些特殊标识符的情况下，在运行时修改类文件不需要 javassist.runtime 包或任何其他 Javassist 包。有关更多详细信息，请参阅 javassist.runtime 包的API文档。</p>
+<h3 id="4-1-在方法体的开始-结尾处添加代码"><a href="#4-1-在方法体的开始-结尾处添加代码" class="headerlink" title="4.1 在方法体的开始/结尾处添加代码"></a>4.1 在方法体的开始/结尾处添加代码</h3><p>CtMethod 和 CtConstructor 提供了 insertBefore()，insertAfter() 和 addCatch() 方法。 它们可以将用 Java 编写的代码片段插入到现有方法中。Javassist 包括一个用于处理源代码的简单编译器，它接收用 Java 编写的源代码，并将其编译成 Java 字节码，并内联方法体中。</p>
+<p>也可以按行号来插入代码段（如果行号表包含在类文件中）。向 CtMethod 和 CtConstructor 中的 insertAt() 方法提供源代码和原始类定义中的源文件的行号，就可以将编译后的代码插入到指定行号位置。</p>
+<p>方法 insertBefore() ，insertAfter()，addCatch() 和 insertAt() 接收一个表示语句或语句块的 String 对象。一个语句是一个单一的控制结构，比如 if 和 while 或者以分号结尾的表达式。语句块是一组用大括号 {} 包围的语句。因此，以下每行都是有效语句或块的示例：</p>
+<figure class="highlight ada"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">System.<span class="keyword">out</span>.println(<span class="string">"Hello"</span>);</div><div class="line">&#123; System.<span class="keyword">out</span>.println(<span class="string">"Hello"</span>); &#125;</div><div class="line"><span class="keyword">if</span> (i &lt; <span class="number">0</span>) &#123; i = -i; &#125;</div></pre></td></tr></table></figure>
+<p>语句和语句块可以引用字段和方法。如果使用 -g 选项（在类文件中包含局部变量属性）编译该方法，则它们还可以引用方法的参数。 否则，它们必须通过特殊变量 $0，$1，$2，… 来访问方法参数，下面会讨论。不允许访问在方法中声明的局部变量，尽管在块中声明一个新的局部变量是允许的。但是，insertAt() 允许语句和块访问局部变量，前提是这些变量在指定的行号处可用，并且目标方法是使用 -g 选项编译的。</p>
+<p>传递给方法 insertBefore() ，insertAfter() ，addCatch() 和 insertAt() 的 String 对象是由Javassist 的编译器编译的。 由于编译器支持语言扩展，以 $ 开头的几个标识符有特殊的含义：</p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$0</code>, <code>$1</code>, <code>$2</code>, …</td>
+<td><code>this</code> and 方法的参数</td>
+</tr>
+<tr>
+<td><code>$args</code></td>
+<td>方法参数数组.它的类型为 <code>Object[]</code></td>
+</tr>
+<tr>
+<td><code>$$</code></td>
+<td>所有实参。例如, <code>m($$)</code> 等价于 <code>m($1,$2,</code>…<code>)</code></td>
+</tr>
+<tr>
+<td><code>$cflow(</code>…<code>)</code></td>
+<td><code>cflow</code> 变量</td>
+</tr>
+<tr>
+<td><code>$r</code></td>
+<td>返回结果的类型，用于强制类型转换</td>
+</tr>
+<tr>
+<td><code>$w</code></td>
+<td>包装器类型，用于强制类型转换</td>
+</tr>
+<tr>
+<td><code>$_</code></td>
+<td>返回值</td>
+</tr>
+<tr>
+<td><code>$sig</code></td>
+<td>类型为 java.lang.Class 的参数类型数组</td>
+</tr>
+<tr>
+<td><code>$type</code></td>
+<td>一个 java.lang.Class 对象，表示返回值类型</td>
+</tr>
+<tr>
+<td><code>$class</code></td>
+<td>一个 java.lang.Class 对象，表示当前正在修改的类</td>
+</tr>
+</tbody>
+</table>
+<h4 id="0-1-2-…"><a href="#0-1-2-…" class="headerlink" title="$0, $1, $2, …"></a>$0, $1, $2, …</h4><p>传递给目标方法的参数使用 $1，$2，… 访问，而不是原始的参数名称。 $1 表示第一个参数，$2 表示第二个参数，以此类推。 这些变量的类型与参数类型相同。 $0 等价于 <code>this</code> 指针。 如果方法是静态的，则 $0 不可用。</p>
+<p>下面有一些使用这些特殊变量的例子。假设一个类 Point:</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">class</span> <span class="title">Point</span> &#123;</div><div class="line">    <span class="keyword">int</span> x, y;</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">move</span>(<span class="params"><span class="keyword">int</span> dx, <span class="keyword">int</span> dy</span>) </span>&#123; x += dx; y += dy; &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>要在调用方法 move() 时打印 dx 和 dy 的值，请执行以下程序：</p>
+<figure class="highlight mipsasm"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">ClassPool pool = ClassPool.getDefault()<span class="comment">;</span></div><div class="line">CtClass cc = pool.get(<span class="string">"Point"</span>)<span class="comment">;</span></div><div class="line">CtMethod m = cc.getDeclaredMethod(<span class="string">"move"</span>)<span class="comment">;</span></div><div class="line">m.<span class="keyword">insertBefore("&#123; </span>System.out.println($<span class="number">1</span>)<span class="comment">; System.out.println($2); &#125;");</span></div><div class="line">cc.writeFile()<span class="comment">;</span></div></pre></td></tr></table></figure>
+<p>请注意，传递给 insertBefore() 的源文本是用大括号 {} 括起来的。insertBefore() 只接受单个语句或用大括号括起来的语句块。</p>
+<p>修改后的类 Point 的定义是这样的：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">class</span> <span class="title">Point</span> &#123;</div><div class="line">    <span class="keyword">int</span> x, y;</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">move</span>(<span class="params"><span class="keyword">int</span> dx, <span class="keyword">int</span> dy</span>) </span>&#123;</div><div class="line">        &#123; System.<span class="keyword">out</span>.println(dx); System.<span class="keyword">out</span>.println(dy); &#125;</div><div class="line">        x += dx; y += dy;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p><code>$1</code> and <code>$2</code> are replaced with <code>dx</code> and <code>dy</code>, respectively.<br><code>$1</code>, <code>$2</code>, <code>$3</code> … are updatable.  If a new value is assigend to one of those variables, then the value of the parameter represented by that variable is also updated.</p>
+<p>$1 和 $2 分别替换为 dx 和 dy。<br>$1，$2，$3 …是可更新的。如果这些变量被赋予新值，则由该变量表示的参数的值也将被更新。</p>
+<h4 id="args"><a href="#args" class="headerlink" title="$args"></a>$args</h4><p>变量 $args 表示所有参数的数组。该变量的类型是 Object 类的数组。如果参数类型是原始类型（如 int），则该参数值将转换为包装器对象（如java.lang.Integer）以存储在 $args 中。 因此，如果第一个参数的类型是不是原始类型，那么 $args[0] 等于 $1。注意 $args[0] 不等于 $0，因为 $0 表示 <code>this</code>。</p>
+<p>如果 Object 的数组被分配给 $args，那么该数组的每个元素都被分配给每个参数。如果参数类型是基本类型，则相应元素的类型必须是包装类型。 在将值分配给参数之前，必须将该值从包装器类型转换为基本类型。</p>
+<h4 id=""><a href="#" class="headerlink" title="$$"></a>$$</h4><p>变量 $$ 是所有参数列表的缩写，用逗号分隔。 例如，如果方法 move() 的有 3 个参数，则</p>
+<figure class="highlight mel"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">move</span>($1, $2, $3)</div></pre></td></tr></table></figure>
+<p>如果 move() 不带任何参数，则 move（$$）等同于move()。<br>$$ 可以与其他方法一起使用。 如果你写一个表达式：</p>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="title">exMove</span><span class="params">($$, context)</span></span></div></pre></td></tr></table></figure>
+<p>这个表达式等价于</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="attribute">exMove</span>(<span class="number">$1</span>, <span class="number">$2</span>, <span class="number">$3</span>, context)</div></pre></td></tr></table></figure>
+<p>注意，$$ 开启了通用符号方法调用，它通常与稍后要介绍的 $proceed 一起使用。</p>
+<h4 id="cflow"><a href="#cflow" class="headerlink" title="$cflow"></a>$cflow</h4><p>$ cflow表示 控制流。此只读变量返回特定方法的递归调用的深度。</p>
+<p>假设下面所示的方法由CtMethod对象cm表示：<br><figure class="highlight excel"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">int</span> <span class="built_in">fact</span>(<span class="built_in">int</span> <span class="built_in">n</span>) &#123;</div><div class="line">    <span class="built_in">if</span> (<span class="built_in">n</span> &lt;= <span class="number">1</span>)</div><div class="line">        return <span class="built_in">n</span>;</div><div class="line">    else</div><div class="line">        return <span class="built_in">n</span> * <span class="built_in">fact</span>(<span class="built_in">n</span> - <span class="number">1</span>);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>要使用 $cflow，首先声明使用 $cflow 监视方法 fact() 的调用：</p>
+<figure class="highlight mipsasm"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">CtMethod cm = ...<span class="comment">;</span></div><div class="line">cm.useCflow(<span class="string">"fact"</span>)<span class="comment">;</span></div></pre></td></tr></table></figure>
+<p>useCflow() 的参数是 $cflow 变量的标识符。任何有效的 Java 名称都可以用作标识符。标识符还可以包括 <code>.</code> ，例如，“my.Test.fact”是有效的标识符。</p>
+<p>然后，$cflow(fact) 表示由 cm 指定的方法的递归调用深度。$cflow(fact) 的值在方法第一次调用时为 0，而当方法在方法中递归调用时为 1。 例如，</p>
+<figure class="highlight less"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">cm<span class="selector-class">.insertBefore</span>(<span class="string">"if ($cflow(fact) == 0)"</span></div><div class="line">              + <span class="string">"    System.out.println(\"</span>fact \<span class="string">" + $1);"</span>);</div></pre></td></tr></table></figure>
+<p>翻译方法fact()，以便它显示参数。因为检查了 $cflow(fact) 的值，所以如果在 fact() 中递归调用，则方法 fact() 不会显示参数。</p>
+<p>$cflow 的值是当前线程的最顶层堆栈帧下与 cm 相关联的堆栈帧数。 $cflow 也可以不在 cm 方法中访问。</p>
+<h4 id="r"><a href="#r" class="headerlink" title="$r"></a>$r</h4><p>$r 表示方法的结果类型（返回类型）。它用在 cast 表达式中作 cast 转换类型。 下面是一个典型的用法：<br><figure class="highlight lasso"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">Object result = <span class="attr">...</span> ;</div><div class="line">$_ = ($r)result;</div></pre></td></tr></table></figure></p>
+<p>如果结果类型是原始类型，则 ($r) 遵循特殊语义。 首先，如果 cast 表达式的操作数是原始类型，($r) 作为普通转换运算符。 另一方面，如果操作数是包装类型，($r) 将从包装类型转换为结果类型。 例如，如果结果类型是 int，那么 ($r) 将从 java.lang.Integer 转换为 int。</p>
+<p>如果结果类型为void，那么 ($r) 不转换类型; 它什么也不做。 但是，如果操作数是对 void 方法的调用，则 ($r) 将导致 null。 例如，如果结果类型是 void，而 foo() 是一个 void 方法，那么</p>
+<figure class="highlight autoit"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$_ = ($r)foo()<span class="comment">;</span></div></pre></td></tr></table></figure>
+<p>是一个正确的表达式。</p>
+<p>cast 运算符 ($r) 在 return 语句中也很有用。 即使结果类型是 void，下面的 return 语句也是有效的：<br><figure class="highlight applescript"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">return</span> ($r)<span class="literal">result</span>;</div></pre></td></tr></table></figure></p>
+<p>这里，result是局部变量。 因为指定了 ($r)，所以结果值被丢弃。此返回语句被等价于:</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">return</span>;</div></pre></td></tr></table></figure>
+<h4 id="w"><a href="#w" class="headerlink" title="$w"></a>$w</h4><p>$w 表示包装类型。它用在 cast 表达式中作 cast 转换类型。($w) 把基本类型转换为包装类型。 以下代码是一个示例：</p>
+<figure class="highlight gams"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">Integer</span> i = (<span class="symbol">$</span>w)<span class="number">5</span>;</div></pre></td></tr></table></figure>
+<p>包装后的类型取决于 ($w) 后面表达式的类型。如果表达式的类型为 double，则包装器类型为 java.lang.Double。</p>
+<p>If the type of the expression following <code>($w)</code> is not a primitive type, then <code>($w)</code> does nothing.<br>如果下面的表达式 ($w) 的类型不是原始类型，那么($w) 什么也不做。</p>
+<h4 id="-1"><a href="#-1" class="headerlink" title="$_"></a>$_</h4><p>CtMethod 中的 insertAfter() 和 CtConstructor 在方法的末尾插入编译的代码。传递给insertAfter() 的语句中，不但可以使用特殊符号如 $0，$1。也可以使用 $<em> 来表示方法的结果值。<br>该变量的类型是方法的结果类型（返回类型）。如果结果类型为 void，那么 $</em> 的类型为Object，$<em> 的值为 null。<br>虽然由 insertAfter() 插入的编译代码通常在方法返回之前执行，但是当方法抛出异常时，它也可以执行。要在抛出异常时执行它，insertAfter() 的第二个参数 asFinally 必须为true。<br>如果抛出异常，由 insertAfter() 插入的编译代码将作为 finally 子句执行。$</em> 的值 0 或 null。在编译代码的执行终止后，最初抛出的异常被重新抛出给调用者。注意，$_ 的值不会被抛给调用者，它将被丢弃。</p>
+<h4 id="sig"><a href="#sig" class="headerlink" title="$sig"></a>$sig</h4><p>$sig 的值是一个 java.lang.Class 对象的数组，表示声明的形式参数类型。</p>
+<h4 id="type"><a href="#type" class="headerlink" title="$type"></a>$type</h4><p>$type 的值是一个 java.lang.Class 对象，表示结果值的类型。 如果这是一个构造函数，此变量返回 Void.class。</p>
+<h4 id="class"><a href="#class" class="headerlink" title="$class"></a>$class</h4><p>$class 的值是一个 java.lang.Class 对象，表示编辑的方法所在的类。 即表示 $0 的类型。</p>
+<h4 id="addCatch"><a href="#addCatch" class="headerlink" title="addCatch()"></a>addCatch()</h4><p>addCatch() 插入方法体抛出异常时执行的代码，控制权会返回给调用者。 在插入的源代码中，异常用 $e 表示。</p>
+<p>例如：<br><figure class="highlight kotlin"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">CtMethod m = ...;</div><div class="line">CtClass etype = ClassPool.getDefault().<span class="keyword">get</span>(<span class="string">"java.io.IOException"</span>);</div><div class="line">m.addCatch(<span class="string">"&#123; System.out.println(<span class="subst">$e</span>); throw <span class="subst">$e</span>; &#125;"</span>, etype);</div></pre></td></tr></table></figure></p>
+<p>转换成对应的 java 代码如下：<br><figure class="highlight less"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="selector-tag">try</span> &#123;</div><div class="line">    <span class="comment">// the original method body</span></div><div class="line">&#125; <span class="selector-tag">catch</span> (java.io.IOException e) &#123;</div><div class="line">    System<span class="selector-class">.out</span><span class="selector-class">.println</span>(e);</div><div class="line">    throw e;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>请注意，插入的代码片段必须以 throw 或 return 语句结束。</p>
+<h3 id="4-2-修改方法体"><a href="#4-2-修改方法体" class="headerlink" title="4.2 修改方法体"></a>4.2 修改方法体</h3><p>CtMethod 和 CtConstructor 提供 setBody() 来替换整个方法体。他将新的源代码编译成 Java  字节码，并用它替换原方法体。 如果给定的源文本为 null，则替换后的方法体仅包含返回语句，返回零或空值，除非结果类型为 void。</p>
+<p>在传递给 setBody() 的源代码中，以 $ 开头的标识符具有特殊含义：</p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$0</code>, <code>$1</code>, <code>$2</code>, …</td>
+<td><code>this</code> and 方法的参数</td>
+</tr>
+<tr>
+<td><code>$args</code></td>
+<td>方法参数数组.它的类型为 <code>Object[]</code></td>
+</tr>
+<tr>
+<td><code>$$</code></td>
+<td>所有实参。例如, <code>m($$)</code> 等价于 <code>m($1,$2,</code>…<code>)</code></td>
+</tr>
+<tr>
+<td><code>$cflow(</code>…<code>)</code></td>
+<td><code>cflow</code> 变量</td>
+</tr>
+<tr>
+<td><code>$r</code></td>
+<td>返回结果的类型，用于强制类型转换</td>
+</tr>
+<tr>
+<td><code>$w</code></td>
+<td>包装器类型，用于强制类型转换</td>
+</tr>
+<tr>
+<td><code>$sig</code></td>
+<td>类型为 java.lang.Class 的参数类型数组</td>
+</tr>
+<tr>
+<td><code>$type</code></td>
+<td>一个 java.lang.Class 对象，表示返回值类型</td>
+</tr>
+<tr>
+<td><code>$class</code></td>
+<td>一个 java.lang.Class 对象，表示当前正在修改的类</td>
+</tr>
+</tbody>
+</table>
+<p>注意 $_ 不可用。</p>
+<h4 id="替换表达式"><a href="#替换表达式" class="headerlink" title="替换表达式"></a>替换表达式</h4><p>Javassist 只允许修改方法体中包含的表达式。javassist.expr.ExprEditor 是一个用于替换方法体中的表达式的类。用户可以定义 ExprEditor 的子类来指定修改表达式的方式。</p>
+<p>要运行 ExprEditor 对象，用户必须在 CtMethod 或 CtClass 中调用 instrument()。<br>例如，</p>
+<figure class="highlight lasso"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">CtMethod cm = <span class="attr">...</span> ;</div><div class="line">cm.instrument(</div><div class="line">    <span class="literal">new</span> ExprEditor() &#123;</div><div class="line">        <span class="keyword">public</span> <span class="literal">void</span> edit(MethodCall m) throws CannotCompileException &#123;</div><div class="line">            <span class="keyword">if</span> (m.getClassName().<span class="keyword">equals</span>(<span class="string">"Point"</span>)</div><div class="line">                          &amp;&amp; m.getMethodName().<span class="keyword">equals</span>(<span class="string">"move"</span>))</div><div class="line">                m.replace(<span class="string">"&#123; $1 = 0; $_ = $proceed($$); &#125;"</span>);</div><div class="line">        &#125;</div><div class="line">    &#125;);</div></pre></td></tr></table></figure>
+<p>上述代码，搜索由 cm 表示的方法体，并用使用下面的代码替换 Point 中的 move()调用：</p>
+<figure class="highlight gams"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">&#123; <span class="symbol">$</span><span class="number">1</span> = <span class="number">0</span>; <span class="symbol">$</span>_ = <span class="symbol">$</span>proceed(<span class="symbol">$</span><span class="symbol">$</span>); &#125;</div></pre></td></tr></table></figure>
+<p>因此 move() 的第一个参数总是0。注意，替换的代码不是一个表达式，而是一个语句或块。 它不能是或包含 try-catch 语句。</p>
+<p>方法 instrument() 搜索方法体。 如果它找到一个表达式，如方法调用、字段访问和对象创建，那么它调用给定的 ExprEditor 对象上的 edit() 方法。 edit() 的参数表示找到的表达式。 edit() 可以检查和替换该表达式。</p>
+<p>调用 edit() 参数的 replace() 方法可以将表达式替换为我们给定的语句。如果给定的语句是空块，即执行replace(“{}”)，则将表达式删除。如果要在表达式之前或之后插入语句（或块），则应该将类似以下的代码传递给 replace()：</p>
+<figure class="highlight aspectj"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">&#123; *<span class="keyword">before</span>-statements;*</div><div class="line">  $_ = $<span class="title">proceed</span>($$);</div><div class="line">  *<span class="keyword">after</span>-statements;* &#125;</div></pre></td></tr></table></figure>
+<p>无论表达式是方法调用、字段访问还是对象创建或其他。</p>
+<p>如果表达式是读操作，第二个语句应该是：<br><figure class="highlight autoit"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$_ = $proceed()<span class="comment">;</span></div></pre></td></tr></table></figure></p>
+<p>如果表达式是写操作，则第二个语句应该是：<br><figure class="highlight elixir"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="variable">$proceed</span>(<span class="variable">$$</span>);</div></pre></td></tr></table></figure></p>
+<p>如果由 instrument() 搜索的方法是使用 -g 选项（类文件包含一个局部变量属性）编译的，目标表达式中可用的局部变量，也可以传递给 replace() 的源代码中使用。</p>
+<h4 id="javassist-expr-MethodCall"><a href="#javassist-expr-MethodCall" class="headerlink" title="javassist.expr.MethodCall"></a>javassist.expr.MethodCall</h4><p>MethodCall 表示方法调用。MethodCall 的 replace() 方法用于替换方法调用，它接收表示替换语句或块的源代码。和 insertBefore() 方法一样，传递给 replace 的源代码中，以 $ 开头的标识符具有特殊的含义。</p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$0</code></td>
+<td>方法调用的目标对象。它不等于 this，它代表了调用者。 如果方法是静态的，则 $0 为 null</td>
+</tr>
+<tr>
+<td><code>$1</code>, <code>$2</code> ..</td>
+<td>方法的参数</td>
+</tr>
+<tr>
+<td><code>$_</code></td>
+<td>方法调用的结果</td>
+</tr>
+<tr>
+<td><code>$r</code></td>
+<td>返回结果的类型，用于强制类型转换</td>
+</tr>
+<tr>
+<td><code>$class</code></td>
+<td>一个 java.lang.Class 对象，表示当前正在修改的类</td>
+</tr>
+<tr>
+<td><code>$sig</code></td>
+<td>类型为 java.lang.Class 的参数类型数组</td>
+</tr>
+<tr>
+<td><code>$type</code></td>
+<td>一个 java.lang.Class 对象，表示返回值类型</td>
+</tr>
+<tr>
+<td><code>$class</code></td>
+<td>一个 java.lang.Class 对象，表示当前正在修改的类</td>
+</tr>
+<tr>
+<td><code>$proceed</code></td>
+<td>调用表达式中方法的名称</td>
+</tr>
+</tbody>
+</table>
+<p>这里的方法调用意味着由 MethodCall 对象表示的方法。</p>
+<p>其他标识符如 $w，$args 和 $$ 也可用。</p>
+<p>除非方法调用的返回类型为 void，否则返回值必须在源代码中赋给 $<em>，$</em> 的类型是表达式的结果类型。如果结果类型为 void，那么 $<em> 的类型为Object，并且分配给 $</em> 的值将被忽略。</p>
+<p>$proceed 不是字符串值，而是特殊的语法。 它后面必须跟一个由括号括起来的参数列表。</p>
+<h4 id="javassist-expr-ConstructorCall"><a href="#javassist-expr-ConstructorCall" class="headerlink" title="javassist.expr.ConstructorCall"></a>javassist.expr.ConstructorCall</h4><p>ConstructorCall 表示构造函数调用，例如包含在构造函数中的 this() 和 super()。ConstructorCall 中的方法 replace() 可以使用语句或代码块来代替构造函数。它接收表示替换语句或块的源代码。和 insertBefore() 方法一样，传递给 replace 的源代码中，以 $ 开头的标识符具有特殊的含义。</p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$0</code></td>
+<td>构造调用的目标对象。它等于 this</td>
+</tr>
+<tr>
+<td><code>$1</code>, <code>$2</code>, …</td>
+<td>构造函数的参数</td>
+</tr>
+<tr>
+<td><code>$class</code></td>
+<td>一个 java.lang.Class 对象，表示当前正在修改的类</td>
+</tr>
+<tr>
+<td><code>$sig</code></td>
+<td>类型为 java.lang.Class 的参数类型数组</td>
+</tr>
+<tr>
+<td><code>$proceed</code></td>
+<td>调用表达式中构造函数的名称</td>
+</tr>
+</tbody>
+</table>
+<p>这里的构造函数调用是由 ConstructorCall 对象表示的。</p>
+<p>其他标识符如 $w，$args 和 $$ 也可用。</p>
+<p>由于任何构造函数必须调用超类的构造函数或同一类的另一个构造函数，所以替换语句必须包含构造函数调用，通常是对 $proceed() 的调用。</p>
+<p>$proceed 不是字符串值，而是特殊的语法。 它后面必须跟一个由括号括起来的参数列表。</p>
+<h4 id="javassist-expr-FieldAccess"><a href="#javassist-expr-FieldAccess" class="headerlink" title="javassist.expr.FieldAccess"></a>javassist.expr.FieldAccess</h4><p>FieldAccess 对象表示字段访问。 如果找到对应的字段访问操作，ExprEditor 中的 edit() 方法将接收到一个 FieldAccess 对象。FieldAccess 中的 replace() 方法接收替源代码来替换字段访问。</p>
+<p>在源代码中，以 $ 开头的标识符具有特殊含义：</p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$0</code></td>
+<td>表达式访问的字段。它不等于 this。this 表示调用表达式所在方法的对象。如果字段是静态的，则 $0 为 null</td>
+</tr>
+<tr>
+<td><code>$1</code></td>
+<td>如果表达式是写操作，则写的值将保存在 $1 中。否则 $1 不可用</td>
+</tr>
+<tr>
+<td><code>$_</code></td>
+<td>如果表达式是读操作，则结果值保存在 $1 中，否则将舍弃存储在 $_ 中的值</td>
+</tr>
+<tr>
+<td><code>$r</code></td>
+<td>如果表达式是读操作，则 $r 读取结果的类型。 否则 $r 为 void</td>
+</tr>
+<tr>
+<td><code>$class</code></td>
+<td>一个 java.lang.Class 对象，表示字段所在的类</td>
+</tr>
+<tr>
+<td><code>$type</code></td>
+<td>一个 java.lang.Class 对象，表示字段的类型</td>
+</tr>
+<tr>
+<td><code>$proceed</code></td>
+<td>执行原始字段访问的虚拟方法的名称</td>
+</tr>
+</tbody>
+</table>
+<p>其他标识符如 $w，$args 和 $$ 也可用。<br>如果表达式是读操作，则必须在源文本中将值分配给 $。 $的类型是字段的类型。</p>
+<h4 id="javassist-expr-NewExpr"><a href="#javassist-expr-NewExpr" class="headerlink" title="javassist.expr.NewExpr"></a>javassist.expr.NewExpr</h4><p>NewExpr 表示使用 new 运算符（不包括数组创建）创建对象的表达式。 如果发现创建对象的操作，NewEditor 中的 edit() 方法将接收到一个 NewExpr 对象。NewExpr 中的 replace() 方法接收替源代码来替换字段访问。</p>
+<p>在源文本中，以 $ 开头的标识符具有特殊含义：</p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$0</code></td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>$1</code></td>
+<td>构造函数的参数</td>
+</tr>
+<tr>
+<td><code>$_</code></td>
+<td>创建对象的返回值。一个新的对象存储在 $_ 中</td>
+</tr>
+<tr>
+<td><code>$r</code></td>
+<td>所创建的对象的类型</td>
+</tr>
+<tr>
+<td><code>$sig</code></td>
+<td>类型为 java.lang.Class 的参数类型数组</td>
+</tr>
+<tr>
+<td><code>$type</code></td>
+<td>一个 java.lang.Class 对象，表示创建的对象的类型</td>
+</tr>
+<tr>
+<td><code>$proceed</code></td>
+<td>执行对象创建虚拟方法的名称</td>
+</tr>
+</tbody>
+</table>
+<p>其他标识符如 $w，$args 和 $$ 也可用。</p>
+<h4 id="javassist-expr-NewArray"><a href="#javassist-expr-NewArray" class="headerlink" title="javassist.expr.NewArray"></a>javassist.expr.NewArray</h4><p>NewArray 表示使用 new 运算符创建数组。如果发现数组创建的操作，ExprEditor 中的 edit() 方法一个 NewArray 对象。NewArray 中的 replace() 方法可以使用源代码来替换数组创建操作。</p>
+<p>在源文本中，以$开头的标识符具有特殊含义：</p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$0</code></td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>$1</code>, <code>$1</code></td>
+<td>每一维的大小</td>
+</tr>
+<tr>
+<td><code>$_</code></td>
+<td>创建数组的返回值。一个新的数组对象存储在 $_ 中</td>
+</tr>
+<tr>
+<td><code>$r</code></td>
+<td>所创建的数组的类型</td>
+</tr>
+<tr>
+<td><code>$type</code></td>
+<td>一个 java.lang.Class 对象，表示创建的数组的类型</td>
+</tr>
+<tr>
+<td><code>$proceed</code></td>
+<td>执行数组创建虚拟方法的名称</td>
+</tr>
+</tbody>
+</table>
+<p>其他标识符如 $w，$args 和 $$ 也可用。<br>例如，如果按下面的方式创建数组：<br><figure class="highlight markdown"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">String[<span class="string"></span>][<span class="symbol"></span>] s = new String[<span class="string">3</span>][<span class="symbol">4</span>];</div></pre></td></tr></table></figure></p>
+<p>那么 $1 和 $2 的值分别是 3 和 4。 $3 不可用。</p>
+<p>例如，如果按下面的方式创建数组：<br><figure class="highlight markdown"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">String[<span class="string"></span>][<span class="symbol"></span>] s = new String[<span class="string">3</span>][<span class="symbol"></span>];</div></pre></td></tr></table></figure></p>
+<p>那么 $1 的值为 3，但 $2 不可用。</p>
+<h4 id="javassist-expr-Instanceof"><a href="#javassist-expr-Instanceof" class="headerlink" title="javassist.expr.Instanceof"></a>javassist.expr.Instanceof</h4><p>一个 InstanceOf 对象表示一个 instanceof 表达式。 如果找到 instanceof 表达式，则ExprEditor 中的 edit() 方法接收此对象。Instanceof 中的 replace() 方法可以使用源代码来替换 instanceof 表达式。</p>
+<p>在源文本中，以$开头的标识符具有特殊含义：</p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$0</code></td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>$1</code></td>
+<td>instanceof 运算符左侧的值</td>
+</tr>
+<tr>
+<td><code>$_</code></td>
+<td>表达式的返回值。类型为 boolean</td>
+</tr>
+<tr>
+<td><code>$r</code></td>
+<td>instanceof 运算符右侧的值</td>
+</tr>
+<tr>
+<td><code>$type</code></td>
+<td>一个 java.lang.Class 对象，表示 instanceof 运算符右侧的类型</td>
+</tr>
+<tr>
+<td><code>$proceed</code></td>
+<td>执行 instanceof 表达式的虚拟方法的名称。它需要一个参数（类型是 java.lang.Object）。如果参数类型和 instanceof 表达式右侧的类型一致，则返回 true。否则返回 false。</td>
+</tr>
+</tbody>
+</table>
+<p>其他标识符如 $w，$args 和 $$ 也可用。</p>
+<h4 id="javassist-expr-Cast"><a href="#javassist-expr-Cast" class="headerlink" title="javassist.expr.Cast"></a>javassist.expr.Cast</h4><p>Cast 表示 cast 表达式。如果找到 cast 表达式，ExprEditor 中的 edit() 方法会接收到一个 Cast 对象。 Cast 的 replace() 方法可以接收源代码来替换替换 cast 表达式。</p>
+<p>在源文本中，以$开头的标识符具有特殊含义：</p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$0</code></td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>$1</code></td>
+<td>显示类型转换的目标类型（？）</td>
+</tr>
+<tr>
+<td><code>$_</code></td>
+<td>表达式的结果值。$_ 的类型和被括号括起来的类型相同（？）</td>
+</tr>
+<tr>
+<td><code>$r</code></td>
+<td>转换之后的类型，即被括号括起来的类型（？）</td>
+</tr>
+<tr>
+<td><code>$type</code></td>
+<td>一个 java.lang.Class 对象，和 $r 的类型相同</td>
+</tr>
+<tr>
+<td><code>$proceed</code></td>
+<td>执行类型转换的虚拟方法的名称。它需要一个参数（类型是 java.lang.Object）。并在类型转换完成后返回它</td>
+</tr>
+</tbody>
+</table>
+<p>其他标识符如 $w，$args 和 $$ 也可用。</p>
+<h4 id="javassist-expr-Handler"><a href="#javassist-expr-Handler" class="headerlink" title="javassist.expr.Handler"></a>javassist.expr.Handler</h4><p>Handler 对象表示 try-catch 语句的 catch 子句。 如果找到 catch，ExprEditor 中的 edit() 方法会接收此对象。 Handler 中的 insertBefore() 方法会将收到的源代码插入到 catch 子句的开头。</p>
+<p>在源文本中，以$开头的标识符具有意义：  </p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$1</code></td>
+<td>catch 分支获得的异常对象</td>
+</tr>
+<tr>
+<td><code>$r</code></td>
+<td>catch 分支获得的异常对象的类型，用于强制类型转换</td>
+</tr>
+<tr>
+<td><code>$w</code></td>
+<td>包装类型，用于强制类型转换</td>
+</tr>
+<tr>
+<td><code>$type</code></td>
+<td>一个 java.lang.Class 对象，表示 catch 捕获的异常的类型</td>
+</tr>
+</tbody>
+</table>
+<p>如果一个新的异常分配给 $1，它将作为捕获的异常传递给原始的 catch 子句。</p>
+<h3 id="4-3-添加新方法和字段"><a href="#4-3-添加新方法和字段" class="headerlink" title="4.3 添加新方法和字段"></a>4.3 添加新方法和字段</h3><h4 id="添加新方法"><a href="#添加新方法" class="headerlink" title="添加新方法"></a>添加新方法</h4><p>Javassist 可以创建新的方法和构造函数。CtNewMethod 和 CtNewConstructor 提供了几个工厂方法来创建 CtMethod 或 CtConstructor 对象。make() 方法可以通过源代码来CtMethod 或 CtConstructor 对象。</p>
+<p>例如：<br><figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">CtClass <span class="built_in">point</span> = ClassPool.getDefault().<span class="built_in">get</span>(<span class="string">"Point"</span>);</div><div class="line">CtMethod m = CtNewMethod.make(</div><div class="line">                 <span class="string">"public int xmove(int dx) &#123; x += dx; &#125;"</span>,</div><div class="line">                 <span class="built_in">point</span>);</div><div class="line"><span class="built_in">point</span>.addMethod(m);</div></pre></td></tr></table></figure></p>
+<p>上面的代码向类 Point 添加了一个公共方法 xmove()。在这个例子中，x 是类 Point 的一个int 字段。</p>
+<p>传递给 make() 和 setBody() 的源文本可以包括以 $ 开头的标识符 ($_ 除外)。 如果目标对象和目标方法名也被传递给 make() 方法，源文本中也可以包括 $proceed。 </p>
+<p>例如：<br><figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">CtClass <span class="built_in">point</span> = ClassPool.getDefault().<span class="built_in">get</span>(<span class="string">"Point"</span>);</div><div class="line">CtMethod m = CtNewMethod.make(</div><div class="line">                 <span class="string">"public int ymove(int dy) &#123; $proceed(0, dy); &#125;"</span>,</div><div class="line">                 <span class="built_in">point</span>, <span class="string">"this"</span>, <span class="string">"move"</span>);</div></pre></td></tr></table></figure></p>
+<p>这个程序创建一个 ymove() 方法，定义如下：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">ymove</span><span class="params">(<span class="keyword">int</span> dy)</span> </span>&#123; <span class="keyword">this</span>.move(<span class="number">0</span>, dy); &#125;</div></pre></td></tr></table></figure></p>
+<p>注意，$proceed 已经被替换为 this.move。</p>
+<p>Javassist 还提供了另一种添加新方法的方式。 你可以先创建一个抽象方法，然后给它一个方法体：<br><figure class="highlight mipsasm"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">CtClass cc = ... <span class="comment">;</span></div><div class="line">CtMethod m = new CtMethod(CtClass.intType, <span class="string">"move"</span>,</div><div class="line">                          new CtClass[] &#123; CtClass.intType &#125;, cc)<span class="comment">;</span></div><div class="line">cc.<span class="keyword">addMethod(m);</span></div><div class="line">m.setBody(<span class="string">"&#123; x += $1; &#125;"</span>)<span class="comment">;</span></div><div class="line">cc.setModifiers(cc.getModifiers() &amp; ~Modifier.ABSTRACT)<span class="comment">;</span></div></pre></td></tr></table></figure></p>
+<p>因为 Javassist 在类中添加了的方法是抽象的，所以在调用 setBody() 之后，必须将类显式地改回非抽象类。</p>
+<h4 id="相互递归的方法-Mutual-recursive-methods"><a href="#相互递归的方法-Mutual-recursive-methods" class="headerlink" title="相互递归的方法 (Mutual recursive methods)"></a>相互递归的方法 (Mutual recursive methods)</h4><p>Javassist 不能这种方法：如果它调用另一个方法，而另一个方法没有被添加到一个类（Javassist可以编译一个以递归方式调用的方法）。如果要向类添加相互递归方法，需要使用如下的技巧。假设你想要将方法 m() 和 n() 添加到由 cc 表示的类中：</p>
+<figure class="highlight mipsasm"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">CtClass cc = ... <span class="comment">;</span></div><div class="line">CtMethod m = CtNewMethod.make(<span class="string">"public abstract int m(int i);"</span>, cc)<span class="comment">;</span></div><div class="line">CtMethod n = CtNewMethod.make(<span class="string">"public abstract int n(int i);"</span>, cc)<span class="comment">;</span></div><div class="line">cc.<span class="keyword">addMethod(m);</span></div><div class="line">cc.<span class="keyword">addMethod(n);</span></div><div class="line">m.setBody(<span class="string">"&#123; return ($1 &lt;= 0) ? 1 : (n($1 - 1) * $1); &#125;"</span>)<span class="comment">;</span></div><div class="line">n.setBody(<span class="string">"&#123; return m($1); &#125;"</span>)<span class="comment">;</span></div><div class="line">cc.setModifiers(cc.getModifiers() &amp; ~Modifier.ABSTRACT)<span class="comment">;</span></div></pre></td></tr></table></figure>
+<p>你必须先创建两个抽象方法，并将它们添加到类中。然后设置它们的方法体，即使方法体包括互相递归的调用。 最后，必须将类更改为非抽象类。</p>
+<h4 id="添加一个字段"><a href="#添加一个字段" class="headerlink" title="添加一个字段"></a>添加一个字段</h4><p>Javassist 还允许用户创建一个新字段。<br><figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">CtClass <span class="built_in">point</span> = ClassPool.getDefault().<span class="built_in">get</span>(<span class="string">"Point"</span>);</div><div class="line">CtField f = <span class="keyword">new</span> CtField(CtClass.intType, <span class="string">"z"</span>, <span class="built_in">point</span>);</div><div class="line"><span class="built_in">point</span>.addField(f);</div></pre></td></tr></table></figure></p>
+<p>该程序向类 Point 添加一个名为 z 的字段。<br>如果必须指定添加字段的初始值，那么上面的程序必须修改为：<br><figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">CtClass <span class="built_in">point</span> = ClassPool.getDefault().<span class="built_in">get</span>(<span class="string">"Point"</span>);</div><div class="line">CtField f = <span class="keyword">new</span> CtField(CtClass.intType, <span class="string">"z"</span>, <span class="built_in">point</span>);</div><div class="line"><span class="built_in">point</span>.addField(f, <span class="string">"0"</span>);  <span class="comment">// initial value is 0</span></div></pre></td></tr></table></figure></p>
+<p>现在，方法 addField() 接收两个参数，第二个参数表示计算初始值的表达式。这个表达式可以是任意 Java 表达式，只要其结果与字段的类型匹配。 请注意，表达式不以分号结尾。</p>
+<p>此外，上述代码可以重写为更简单代码：<br><figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">CtClass <span class="built_in">point</span> = ClassPool.getDefault().<span class="built_in">get</span>(<span class="string">"Point"</span>);</div><div class="line">CtField f = CtField.make(<span class="string">"public int z = 0;"</span>, <span class="built_in">point</span>);</div><div class="line"><span class="built_in">point</span>.addField(f);</div></pre></td></tr></table></figure></p>
+<h4 id="删除成员"><a href="#删除成员" class="headerlink" title="删除成员"></a>删除成员</h4><p>要删除字段或方法，请在 CtClass 的 removeField() 或 removeMethod() 方法。 一个CtConstructor 可以通过 CtClass 的 removeConstructor() 删除。</p>
+<h3 id="4-4-注解-Annotations"><a href="#4-4-注解-Annotations" class="headerlink" title="4.4 注解 (Annotations)"></a>4.4 注解 (Annotations)</h3><p>CtClass，CtMethod，CtField 和 CtConstructor 提供 getAnnotations() 方法，用于读取注解。 它返回一个注解类型的对象。</p>
+<p>例如，假设有以下注解：<br><figure class="highlight cs"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> @<span class="keyword">interface</span> <span class="title">Author</span> &#123;</div><div class="line">    <span class="function">String <span class="title">name</span>(<span class="params"></span>)</span>;</div><div class="line">    <span class="function"><span class="keyword">int</span> <span class="title">year</span>(<span class="params"></span>)</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>下面是使用注解的代码：</p>
+<figure class="highlight groovy"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Author</span>(name=<span class="string">"Chiba"</span>, year=<span class="number">2005</span>)</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Point</span> &#123;</span></div><div class="line">    <span class="keyword">int</span> x, y;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>然后，可以使用 getAnnotations() 获取注解的值。 它返回一个包含注解类型对象的数组。<br><figure class="highlight processing"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">CtClass cc = ClassPool.getDefault().<span class="built_in">get</span>(<span class="string">"Point"</span>);</div><div class="line"><span class="keyword">Object</span>[] all = cc.getAnnotations();</div><div class="line">Author a = (Author)all[<span class="number">0</span>];</div><div class="line"><span class="keyword">String</span> name = a.name();</div><div class="line"><span class="built_in">int</span> <span class="built_in">year</span> = a.<span class="built_in">year</span>();</div><div class="line">System.out.<span class="built_in">println</span>(<span class="string">"name: "</span> + name + <span class="string">", year: "</span> + <span class="built_in">year</span>);</div></pre></td></tr></table></figure></p>
+<p>这段代码输出：<br><figure class="highlight applescript"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">name</span>: Chiba, <span class="built_in">year</span>: <span class="number">2005</span></div></pre></td></tr></table></figure></p>
+<p>由于 Point 的注解只有 @Author，所以数组的长度是 1，all[0] 是一个 Author 对象。 注解成员值可以通过调用Author对象的 name() 和 year() 来获取。</p>
+<p>要使用 getAnnotations()，注释类型（如 Author）必须包含在当前类路径中。它们也必须也可以从 ClassPool 对象访问。如果未找到注释类型的类文件，Javassist 将无法获取该注释类型的成员的默认值。</p>
+<h3 id="4-5-运行时支持类"><a href="#4-5-运行时支持类" class="headerlink" title="4.5 运行时支持类"></a>4.5 运行时支持类</h3><p>在大多数情况下，使用 Javassist 修改类不需要运行 Javassist。 但是，Javassist 编译器生成的某些字节码需要运行时支持类，这些类位于 javassist.runtime 包中（有关详细信息，请阅读该包的API文档）。请注意，javassist.runtime 是修改的类时唯一可能需要使用的包。 修改类的运行时不会再使用其他的 Javassist 类。</p>
+<h3 id="4-6-导入（Import）"><a href="#4-6-导入（Import）" class="headerlink" title="4.6 导入（Import）"></a>4.6 导入（Import）</h3><p>源代码中的所有类名都必须是完整的（必须包含包名，java.lang 除外）。例如，Javassist 编译器可以解析 Object 以及 java.lang.Object。</p>
+<p>要告诉编译器在解析类名时搜索其他包，请在 ClassPool中 调用 importPackage()。 例如，</p>
+<figure class="highlight mipsasm"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">ClassPool pool = ClassPool.getDefault()<span class="comment">;</span></div><div class="line">pool.importPackage(<span class="string">"java.awt"</span>)<span class="comment">;</span></div><div class="line">CtClass cc = pool.makeClass(<span class="string">"Test"</span>)<span class="comment">;</span></div><div class="line">CtField f = CtField.make(<span class="string">"public Point p;"</span>, cc)<span class="comment">;</span></div><div class="line">cc.<span class="keyword">addField(f);</span></div></pre></td></tr></table></figure>
+<p>第二行导入了 java.awt 包。 因此，第三行不会抛出异常。 编译器可以将 Point 识别为java.awt.Point。</p>
+<p>注意 importPackage() 不会影响 ClassPool 中的 get() 方法。只有编译器才考虑导入包。 get()  的参数必须是完整类名。</p>
+<h3 id="4-7-限制-Limitations"><a href="#4-7-限制-Limitations" class="headerlink" title="4.7 限制 (Limitations)"></a>4.7 限制 (Limitations)</h3><p>在目前实现中，Javassist 中包含的 Java 编译器有一些限制：</p>
+<ul>
+<li>J2SE 5.0 引入的新语法（包括枚举和泛型）不受支持。注释由 Javassist 的低级 API 支持。 参见 javassist.bytecode.annotation 包（以及 CtClass 和 CtBehavior 中的 getAnnotations()）。对泛型只提供部分支持。更多信息，请参阅后面的部分；</li>
+<li>初始化数组时，只有一维数组可以用大括号加逗号分隔元素的形式初始化，多维数组还不支持；</li>
+<li>编译器不能编译包含内部类和匿名类的源代码。 但是，Javassist 可以读取和修改内部/匿名类的类文件；</li>
+<li>不支持带标记的 continue 和 break 语句；</li>
+<li>编译器没有正确实现 Java 方法调度算法。编译器可能会混淆在类中定义的重载方法（方法名称相同，查参数列表不同）。例如：<figure class="highlight scala"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">A</span> </span>&#123;&#125; </div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">B</span> <span class="keyword">extends</span> <span class="title">A</span> </span>&#123;&#125; </div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">C</span> <span class="keyword">extends</span> <span class="title">B</span> </span>&#123;&#125; </div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">X</span> </span>&#123; </div><div class="line">    void foo(<span class="type">A</span> a) &#123; .. &#125; </div><div class="line">    void foo(<span class="type">B</span> b) &#123; .. &#125; </div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>如果编译的表达式是 <code>x.foo(new C())</code>，其中 <code>x</code> 是 <code>X</code> 的实例，编译器将产生对 <code>foo(A)</code> 的调用，尽管编译器可以正确地编译 <code>foo((B) new C())</code> 。</p>
+<ul>
+<li>建议使用 # 作为类名和静态方法或字段名之间的分隔符。 例如，在常规 Java 中，<figure class="highlight stylus"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">javassist<span class="selector-class">.CtClass</span><span class="selector-class">.intType</span><span class="selector-class">.getName</span>()</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>在 javassist.CtClass 中的静态字段 intType 指示的对象上调用一个方法 getName()。 在Javassist 中，用户也可以写上面的表达式，但是建议写成这样：<br><figure class="highlight css"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="selector-tag">javassist</span><span class="selector-class">.CtClass</span><span class="selector-id">#intType</span><span class="selector-class">.getName</span>()</div></pre></td></tr></table></figure></p>
+<p>使编译器可以快速解析表达式。</p>
+</div><script type="text/javascript" src="/js/share.js?v=0.0.0" async></script><a data-url="http://erhu.party/2016/11/23/javassist-turorial-2/" data-id="ciw196sad000pj8qat4q28c7p" class="article-share-link">分享到</a><div class="tags"><a href="/tags/javassist/">javassist</a></div><div class="post-nav"><a href="/2016/11/23/javassist-tutorial-3/" class="pre">Javassist 使用指南（三）</a><a href="/2016/11/17/javassist-turorial-1/" class="next">Javassist 使用指南（一）</a></div></div></div></div><div class="pure-u-1-4"><div id="sidebar"><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/camera/" style="font-size: 15px;">camera</a> <a href="/tags/android/" style="font-size: 15px;">android</a> <a href="/tags/besier/" style="font-size: 15px;">besier</a> <a href="/tags/技术分享/" style="font-size: 15px;">技术分享</a> <a href="/tags/photography/" style="font-size: 15px;">photography</a> <a href="/tags/javassist/" style="font-size: 15px;">javassist</a> <a href="/tags/培训/" style="font-size: 15px;">培训</a> <a href="/tags/emacs/" style="font-size: 15px;">emacs</a> <a href="/tags/scinece/" style="font-size: 15px;">scinece</a> <a href="/tags/月结/" style="font-size: 15px;">月结</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最新文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2016/11/28/2016年11月/">2016年11月</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/11/23/javassist-tutorial-3/">Javassist 使用指南（三）</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/11/23/javassist-turorial-2/">Javassist 使用指南（二）</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/11/17/javassist-turorial-1/">Javassist 使用指南（一）</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/11/10/training-of-training/">培训的培训</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/11/01/fantastic-ppt/">技术分享圆满成功</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/10/18/photograph001/">摄影作品001</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/10/16/besier/">贝塞尔曲线</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/09/29/get-system-service/">追踪 getSystemService(...)</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/09/29/window-manager/">从源码角度解析悬浮窗</a></li></ul></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">© <a href="/." rel="nofollow">四十岁退休.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a id="rocket" href="#top" class="show"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.bootcss.com/fancybox/2.1.5/jquery.fancybox.pack.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="/css/jquery.fancybox.css?v=0.0.0"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
